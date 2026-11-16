@@ -42,9 +42,10 @@ jobs:
           fi
 
           PROJECT_DIR="$(dirname "$PROJECT")"
-
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          echo "Found project: $PROJECT_DIR"
+
+          echo "Project found: $PROJECT_DIR"
+          ls -la "$PROJECT_DIR"
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -67,11 +68,11 @@ jobs:
             -type f -name sdkmanager | head -n 1)
 
           if [ -z "$SDKMANAGER" ]; then
-            echo "ERROR: Android SDK manager not found"
+            echo "ERROR: sdkmanager not found"
             exit 1
           fi
 
-          echo "Using: $SDKMANAGER"
+          echo "Using SDK Manager: $SDKMANAGER"
 
           set +o pipefail
           yes | "$SDKMANAGER" --licenses || true
@@ -94,7 +95,7 @@ jobs:
 
           chmod +x Godot_v4.6.3-stable_linux.x86_64
 
-      - name: Install Godot export templates
+      - name: Install Godot Export Templates
         shell: bash
         run: |
           set -euo pipefail
@@ -102,17 +103,20 @@ jobs:
           wget -q \
             https://github.com/godotengine/godot/releases/download/4.6.3-stable/Godot_v4.6.3-stable_export_templates.tpz
 
-          mkdir -p \
-            "$HOME/.local/share/godot/export_templates/4.6.3.stable"
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/4.6.3.stable"
+
+          mkdir -p "$TEMPLATE_DIR"
 
           unzip -q \
             Godot_v4.6.3-stable_export_templates.tpz \
             -d templates
 
-          cp -a templates/templates/. \
-            "$HOME/.local/share/godot/export_templates/4.6.3.stable/"
+          cp -a templates/templates/. "$TEMPLATE_DIR/"
 
-      - name: Create Android debug keystore
+          echo "Export templates installed:"
+          ls -lh "$TEMPLATE_DIR"
+
+      - name: Create Android Debug Keystore
         shell: bash
         run: |
           set -euo pipefail
@@ -129,7 +133,7 @@ jobs:
             -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
 
-      - name: Configure Godot Android paths
+      - name: Configure Godot Android Paths
         shell: bash
         run: |
           set -euo pipefail
@@ -147,7 +151,7 @@ jobs:
           export/android/debug_keystore_password = "android"
           EOF
 
-      - name: Import TWENZI project
+      - name: Import TWENZI Project
         shell: bash
         run: |
           set -euo pipefail
@@ -164,19 +168,27 @@ jobs:
         run: |
           set -euo pipefail
 
-          mkdir -p "$PROJECT_DIR/builds"
+          cd "$PROJECT_DIR"
 
-          ./Godot_v4.6.3-stable_linux.x86_64 \
+          mkdir -p builds
+
+          echo "Project directory:"
+          pwd
+
+          echo "Build directory:"
+          ls -ld builds
+
+          "$GITHUB_WORKSPACE/Godot_v4.6.3-stable_linux.x86_64" \
             --headless \
-            --path "$PROJECT_DIR" \
+            --path . \
             --export-debug \
             "Android Debug" \
-            "$PROJECT_DIR/builds/TWENZI.apk"
+            builds/TWENZI.apk
 
-          test -s "$PROJECT_DIR/builds/TWENZI.apk"
+          test -s builds/TWENZI.apk
 
           echo "APK BUILD SUCCESSFUL"
-          ls -lh "$PROJECT_DIR/builds/TWENZI.apk"
+          ls -lh builds/TWENZI.apk
 
       - name: Upload TWENZI APK
         uses: actions/upload-artifact@v4
